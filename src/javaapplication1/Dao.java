@@ -37,7 +37,6 @@ public class Dao {
     // CRUD implementation
 
     public void createTables() {
-        // Variables for SQL Query table creations
         final String createTicketsTable = "CREATE TABLE IF NOT EXISTS mhasan_tickets("
                 + "ticket_id INT AUTO_INCREMENT PRIMARY KEY, "
                 + "ticket_issuer VARCHAR(30), "
@@ -53,25 +52,21 @@ public class Dao {
                 + "admin INT)";
 
         try {
-            // Execute queries to create tables
             statement = getConnection().createStatement();
             statement.executeUpdate(createTicketsTable);
             statement.executeUpdate(createUsersTable);
             System.out.println("Created tables in the given database...");
 
-            // Close connection/statement object
             statement.close();
             connect.close();
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
 
-        // Add users to the users table
         addUsers();
     }
 
     public void addUsers() {
-        // Read user data from file
         BufferedReader br;
         List<List<String>> array = new ArrayList<>();
 
@@ -86,29 +81,21 @@ public class Dao {
         }
 
         try {
-            // Setup the connection with the DB
             Connection connection = getConnection();
-
-            // Prepare a statement to check if the user already exists
             String checkUserSQL = "SELECT COUNT(*) FROM mhasan_users WHERE uname = ?";
             PreparedStatement checkUserStmt = connection.prepareStatement(checkUserSQL);
-
-            // Prepare a statement to insert a new user
             String insertUserSQL = "INSERT INTO mhasan_users(uname, upass, admin) VALUES(?, ?, ?)";
             PreparedStatement insertUserStmt = connection.prepareStatement(insertUserSQL);
 
-            // Loop through the data and insert only unique users
             for (List<String> rowData : array) {
                 String uname = rowData.get(0);
                 String upass = rowData.get(1);
                 int admin = Integer.parseInt(rowData.get(2));
 
-                // Check if the user already exists
                 checkUserStmt.setString(1, uname);
                 ResultSet rs = checkUserStmt.executeQuery();
                 rs.next();
                 if (rs.getInt(1) == 0) {
-                    // User doesn't exist, insert them
                     insertUserStmt.setString(1, uname);
                     insertUserStmt.setString(2, upass);
                     insertUserStmt.setInt(3, admin);
@@ -125,15 +112,17 @@ public class Dao {
         }
     }
 
-    public int insertRecords(String ticketName, String ticketDesc) {
+    // Insert a new ticket and return the ticket ID
+    public int insertTicket(String ticketName, String ticketDesc) {
         int id = 0;
         try {
-            statement = getConnection().createStatement();
-            statement.executeUpdate("INSERT INTO mhasan_tickets(ticket_issuer, ticket_description) "
-                    + "VALUES('" + ticketName + "', '" + ticketDesc + "')", Statement.RETURN_GENERATED_KEYS);
+            String sql = "INSERT INTO mhasan_tickets(ticket_issuer, ticket_description) VALUES(?, ?)";
+            PreparedStatement pstmt = getConnection().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            pstmt.setString(1, ticketName);
+            pstmt.setString(2, ticketDesc);
+            pstmt.executeUpdate();
 
-            // Retrieve ticket id number newly auto-generated upon record insertion
-            ResultSet resultSet = statement.getGeneratedKeys();
+            ResultSet resultSet = pstmt.getGeneratedKeys();
             if (resultSet.next()) {
                 id = resultSet.getInt(1);
             }
@@ -143,6 +132,111 @@ public class Dao {
         return id;
     }
 
+    // View tickets by ticket ID
+    public ResultSet viewTicketById(int ticketId) {
+        ResultSet result = null;
+        try {
+            String sql = "SELECT * FROM mhasan_tickets WHERE ticket_id = ?";
+            PreparedStatement pstmt = getConnection().prepareStatement(sql);
+            pstmt.setInt(1, ticketId);
+            result = pstmt.executeQuery();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    public boolean assignTicket(int ticketId, String assignee) {
+        boolean assigned = false;
+        try (PreparedStatement pstmt = getConnection()
+                .prepareStatement("UPDATE mhasan_tickets SET assigned_to = ? WHERE ticket_id = ?")) {
+            pstmt.setString(1, assignee); // Set the assignee
+            pstmt.setInt(2, ticketId); // Set the ticket ID
+            assigned = pstmt.executeUpdate() > 0; // Check if the update was successful
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return assigned; // Return whether the operation was successful
+    }
+
+    // Update a ticket's description by ticket ID
+    public boolean updateTicketById(int ticketId, String newDescription) {
+        boolean updated = false;
+        try {
+            String sql = "UPDATE mhasan_tickets SET ticket_description = ? WHERE ticket_id = ?";
+            PreparedStatement pstmt = getConnection().prepareStatement(sql);
+            pstmt.setString(1, newDescription);
+            pstmt.setInt(2, ticketId);
+            updated = pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return updated;
+    }
+
+    // Update a user's username by user ID
+    public boolean updateUserById(int userId, String newUsername) {
+        boolean updated = false;
+        try (PreparedStatement pstmt = getConnection()
+                .prepareStatement("UPDATE mhasan_users SET uname = ? WHERE uid = ?")) {
+            pstmt.setString(1, newUsername); // Set the new username
+            pstmt.setInt(2, userId); // Set the user ID
+            updated = pstmt.executeUpdate() > 0; // Check if the update was successful
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return updated; // Return whether the operation was successful
+    }
+
+    // Delete a user by user ID
+    public boolean deleteUserById(int userId) {
+        boolean deleted = false;
+        try (PreparedStatement pstmt = getConnection()
+                .prepareStatement("DELETE FROM mhasan_users WHERE uid = ?")) {
+            pstmt.setInt(1, userId); // Set the user ID
+            deleted = pstmt.executeUpdate() > 0; // Check if the deletion was successful
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return deleted; // Return whether the operation was successful
+    }
+
+    // Delete a ticket by ticket ID
+    public boolean deleteTicketById(int ticketId) {
+        boolean deleted = false;
+        try {
+            String sql = "DELETE FROM mhasan_tickets WHERE ticket_id = ?";
+            PreparedStatement pstmt = getConnection().prepareStatement(sql);
+            pstmt.setInt(1, ticketId);
+
+            int confirm = javax.swing.JOptionPane.showConfirmDialog(null,
+                    "Are you sure you want to delete ticket number: " + ticketId + "?",
+                    "Confirm Deletion", javax.swing.JOptionPane.YES_NO_OPTION);
+
+            if (confirm == javax.swing.JOptionPane.YES_OPTION) {
+                deleted = pstmt.executeUpdate() > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return deleted;
+    }
+
+    // Close a ticket by ticket ID
+    public boolean closeTicketById(int ticketId) {
+        boolean closed = false;
+        try {
+            String sql = "UPDATE mhasan_tickets SET status = 'Closed' WHERE ticket_id = ?";
+            PreparedStatement pstmt = getConnection().prepareStatement(sql);
+            pstmt.setInt(1, ticketId);
+            closed = pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return closed;
+    }
+
+    // Read all ticket records
     public ResultSet readRecords() {
         ResultSet results = null;
         try {
@@ -154,10 +248,12 @@ public class Dao {
         return results;
     }
 
+    // Filter tickets by status
     public ResultSet filterTicketsByStatus(String status) {
         ResultSet results = null;
-        try (PreparedStatement pstmt = getConnection().prepareStatement(
-                "SELECT * FROM mhasan_tickets WHERE status = ?")) {
+        try {
+            String sql = "SELECT * FROM mhasan_tickets WHERE status = ?";
+            PreparedStatement pstmt = getConnection().prepareStatement(sql);
             pstmt.setString(1, status);
             results = pstmt.executeQuery();
         } catch (SQLException e) {
@@ -166,10 +262,12 @@ public class Dao {
         return results;
     }
 
+    // Filter tickets by priority
     public ResultSet filterTicketsByPriority(String priority) {
         ResultSet results = null;
-        try (PreparedStatement pstmt = getConnection().prepareStatement(
-                "SELECT * FROM mhasan_tickets WHERE priority = ?")) {
+        try {
+            String sql = "SELECT * FROM mhasan_tickets WHERE priority = ?";
+            PreparedStatement pstmt = getConnection().prepareStatement(sql);
             pstmt.setString(1, priority);
             results = pstmt.executeQuery();
         } catch (SQLException e) {
@@ -178,64 +276,16 @@ public class Dao {
         return results;
     }
 
+    // Get all users
     public ResultSet getAllUsers() {
         ResultSet results = null;
         try {
-            statement = getConnection().createStatement();
-            results = statement.executeQuery("SELECT uid, uname, admin FROM mhasan_users");
+            String sql = "SELECT uid, uname, admin FROM mhasan_users";
+            PreparedStatement pstmt = getConnection().prepareStatement(sql);
+            results = pstmt.executeQuery();
         } catch (SQLException e) {
             e.printStackTrace();
         }
         return results;
-    }
-
-    public boolean updateTicket(int ticketId, String newDescription) {
-        boolean updated = false;
-        try (PreparedStatement pstmt = getConnection()
-                .prepareStatement("UPDATE mhasan_tickets SET ticket_description = ? WHERE ticket_id = ?")) {
-            pstmt.setString(1, newDescription);
-            pstmt.setInt(2, ticketId);
-            updated = pstmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return updated;
-    }
-
-    public boolean assignTicket(int ticketId, String assignee) {
-        boolean assigned = false;
-        try (PreparedStatement pstmt = getConnection()
-                .prepareStatement("UPDATE mhasan_tickets SET assigned_to = ? WHERE ticket_id = ?")) {
-            pstmt.setString(1, assignee);
-            pstmt.setInt(2, ticketId);
-            assigned = pstmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return assigned;
-    }
-
-    public boolean deleteTicket(int ticketId) {
-        boolean deleted = false;
-        try (PreparedStatement pstmt = getConnection()
-                .prepareStatement("DELETE FROM mhasan_tickets WHERE ticket_id = ?")) {
-            pstmt.setInt(1, ticketId);
-            deleted = pstmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return deleted;
-    }
-
-    public boolean closeTicket(int ticketId) {
-        boolean closed = false;
-        try (PreparedStatement pstmt = getConnection()
-                .prepareStatement("UPDATE mhasan_tickets SET status = 'Closed' WHERE ticket_id = ?")) {
-            pstmt.setInt(1, ticketId);
-            closed = pstmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return closed;
     }
 }

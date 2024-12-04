@@ -7,14 +7,15 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.sql.SQLException;
 
+import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
-import javax.swing.JPanel;
 
 @SuppressWarnings("serial")
 public class Tickets extends JFrame implements ActionListener {
@@ -28,15 +29,21 @@ public class Tickets extends JFrame implements ActionListener {
     private JMenu mnuFilters = new JMenu("Filters");
 
     JMenuItem mnuItemExit;
-    JMenuItem mnuItemUpdate;
-    JMenuItem mnuItemDelete;
+    JMenuItem mnuItemUpdateTicket;
+    JMenuItem mnuItemDeleteTicket;
     JMenuItem mnuItemCloseTicket;
     JMenuItem mnuItemOpenTicket;
     JMenuItem mnuItemViewTicket;
+    JMenuItem mnuItemUpdateUser;
+    JMenuItem mnuItemDeleteUser;
     JMenuItem mnuItemAssignTicket;
     JMenuItem mnuItemFilterByStatus;
     JMenuItem mnuItemFilterByPriority;
-    JMenuItem mnuItemDashboard;
+
+    // Buttons for ticket actions
+    private JButton btnUpdateTicketDescription;
+    private JButton btnDeleteTicket;
+    private JButton btnCloseTicket; // Admin-only button to close tickets
 
     public Tickets(Boolean isAdmin) {
         chkIfAdmin = isAdmin;
@@ -50,16 +57,18 @@ public class Tickets extends JFrame implements ActionListener {
         mnuFile.add(mnuItemExit);
 
         // Admin Menu (only accessible to admins)
-        mnuItemUpdate = new JMenuItem("Update Ticket");
-        mnuItemDelete = new JMenuItem("Delete Ticket");
+        mnuItemUpdateTicket = new JMenuItem("Update Ticket");
+        mnuItemDeleteTicket = new JMenuItem("Delete Ticket");
         mnuItemCloseTicket = new JMenuItem("Close Ticket");
         mnuItemAssignTicket = new JMenuItem("Assign Ticket");
-        mnuItemDashboard = new JMenuItem("Dashboard");
-        mnuAdmin.add(mnuItemUpdate);
-        mnuAdmin.add(mnuItemDelete);
+        mnuItemUpdateUser = new JMenuItem("Update User");
+        mnuItemDeleteUser = new JMenuItem("Delete User");
+        mnuAdmin.add(mnuItemUpdateTicket);
+        mnuAdmin.add(mnuItemDeleteTicket);
         mnuAdmin.add(mnuItemCloseTicket);
         mnuAdmin.add(mnuItemAssignTicket);
-        mnuAdmin.add(mnuItemDashboard);
+        mnuAdmin.add(mnuItemUpdateUser);
+        mnuAdmin.add(mnuItemDeleteUser);
 
         // Tickets Menu
         mnuItemOpenTicket = new JMenuItem("Open Ticket");
@@ -75,11 +84,12 @@ public class Tickets extends JFrame implements ActionListener {
 
         // Add Action Listeners
         mnuItemExit.addActionListener(this);
-        mnuItemUpdate.addActionListener(this);
-        mnuItemDelete.addActionListener(this);
+        mnuItemUpdateTicket.addActionListener(this);
+        mnuItemDeleteTicket.addActionListener(this);
         mnuItemCloseTicket.addActionListener(this);
         mnuItemAssignTicket.addActionListener(this);
-        mnuItemDashboard.addActionListener(this);
+        mnuItemUpdateUser.addActionListener(this);
+        mnuItemDeleteUser.addActionListener(this);
         mnuItemOpenTicket.addActionListener(this);
         mnuItemViewTicket.addActionListener(this);
         mnuItemFilterByStatus.addActionListener(this);
@@ -98,13 +108,33 @@ public class Tickets extends JFrame implements ActionListener {
         bar.add(mnuFilters);
         setJMenuBar(bar);
 
+        // Add buttons for ticket actions
+        JPanel buttonPanel = new JPanel();
+        btnUpdateTicketDescription = new JButton("Update My Ticket");
+        btnDeleteTicket = new JButton("Delete My Ticket");
+        btnCloseTicket = new JButton("Close a Ticket (Admin Only)");
+
+        btnUpdateTicketDescription.addActionListener(this);
+        btnDeleteTicket.addActionListener(this);
+        btnCloseTicket.addActionListener(this);
+
+        // Add buttons to panel
+        buttonPanel.add(btnUpdateTicketDescription);
+        buttonPanel.add(btnDeleteTicket);
+
+        if (chkIfAdmin) {
+            buttonPanel.add(btnCloseTicket); // Only add the "Close Ticket" button if admin
+        }
+
+        add(buttonPanel, "South"); // Add buttons to the bottom of the frame
+
         addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent wE) {
                 System.exit(0);
             }
         });
 
-        setSize(400, 600);
+        setSize(600, 600);
         getContentPane().setBackground(Color.LIGHT_GRAY);
         setLocationRelativeTo(null);
         setVisible(true);
@@ -118,86 +148,71 @@ public class Tickets extends JFrame implements ActionListener {
             String ticketName = JOptionPane.showInputDialog(null, "Enter your name");
             String ticketDesc = JOptionPane.showInputDialog(null, "Enter a ticket description");
 
-            int id = dao.insertRecords(ticketName, ticketDesc);
+            int id = dao.insertTicket(ticketName, ticketDesc);
             if (id != 0) {
                 JOptionPane.showMessageDialog(null, "Ticket ID: " + id + " created successfully!");
             } else {
                 JOptionPane.showMessageDialog(null, "Failed to create the ticket.");
             }
 
+        } else if (e.getSource() == btnUpdateTicketDescription) {
+            try {
+                int ticketId = Integer.parseInt(JOptionPane.showInputDialog(null, "Enter Ticket ID to update:"));
+                String newDescription = JOptionPane.showInputDialog(null, "Enter new description:");
+
+                if (ticketId > 0 && newDescription != null && !newDescription.trim().isEmpty()) {
+                    boolean isUpdated = dao.updateTicketById(ticketId, newDescription);
+                    if (isUpdated) {
+                        JOptionPane.showMessageDialog(null, "Ticket ID: " + ticketId + " updated successfully!");
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Failed to update Ticket ID: " + ticketId);
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(null, "Invalid input provided.");
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(null, "Please enter a valid ticket ID.");
+            }
+
+        } else if (e.getSource() == btnDeleteTicket) {
+            try {
+                int ticketId = Integer.parseInt(JOptionPane.showInputDialog(null, "Enter Ticket ID to delete:"));
+
+                if (ticketId > 0) {
+                    boolean isDeleted = dao.deleteTicketById(ticketId);
+                    if (isDeleted) {
+                        JOptionPane.showMessageDialog(null, "Ticket ID: " + ticketId + " deleted successfully!");
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Failed to delete Ticket ID: " + ticketId);
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(null, "Invalid Ticket ID entered.");
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(null, "Please enter a valid ticket ID.");
+            }
+
+        } else if (e.getSource() == btnCloseTicket) { // Handle Close Ticket button for admins
+            try {
+                int ticketId = Integer.parseInt(JOptionPane.showInputDialog(null, "Enter Ticket ID to close:"));
+
+                if (ticketId > 0) {
+                    boolean isClosed = dao.closeTicketById(ticketId); // Uses Dao method
+                    if (isClosed) {
+                        JOptionPane.showMessageDialog(null, "Ticket ID: " + ticketId + " closed successfully!");
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Failed to close Ticket ID: " + ticketId);
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(null, "Invalid Ticket ID entered.");
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(null, "Please enter a valid ticket ID.");
+            }
+
         } else if (e.getSource() == mnuItemViewTicket) {
             try {
                 JTable jt = new JTable(ticketsJTable.buildTableModel(dao.readRecords()));
-                jt.setBounds(60, 80, 300, 400);
-                JScrollPane sp = new JScrollPane(jt);
-                add(sp);
-                setVisible(true);
-            } catch (SQLException e1) {
-                e1.printStackTrace();
-            }
-
-        } else if (e.getSource() == mnuItemUpdate) {
-            int ticketId = Integer.parseInt(JOptionPane.showInputDialog(null, "Enter Ticket ID to update:"));
-            String newDescription = JOptionPane.showInputDialog(null, "Enter new description:");
-            boolean isUpdated = dao.updateTicket(ticketId, newDescription);
-            if (isUpdated) {
-                JOptionPane.showMessageDialog(null, "Ticket ID: " + ticketId + " updated successfully!");
-            } else {
-                JOptionPane.showMessageDialog(null, "Failed to update Ticket ID: " + ticketId);
-            }
-
-        } else if (e.getSource() == mnuItemDelete) {
-            int ticketId = Integer.parseInt(JOptionPane.showInputDialog(null, "Enter Ticket ID to delete:"));
-            int confirm = JOptionPane.showConfirmDialog(null,
-                    "Are you sure you want to delete Ticket ID: " + ticketId + "?", "Confirm Delete",
-                    JOptionPane.YES_NO_OPTION);
-            if (confirm == JOptionPane.YES_OPTION) {
-                boolean isDeleted = dao.deleteTicket(ticketId);
-                if (isDeleted) {
-                    JOptionPane.showMessageDialog(null, "Ticket ID: " + ticketId + " deleted successfully!");
-                } else {
-                    JOptionPane.showMessageDialog(null, "Failed to delete Ticket ID: " + ticketId);
-                }
-            }
-
-        } else if (e.getSource() == mnuItemCloseTicket) {
-            int ticketId = Integer.parseInt(JOptionPane.showInputDialog(null, "Enter Ticket ID to close:"));
-            boolean isClosed = dao.closeTicket(ticketId);
-            if (isClosed) {
-                JOptionPane.showMessageDialog(null, "Ticket ID: " + ticketId + " closed successfully!");
-            } else {
-                JOptionPane.showMessageDialog(null, "Failed to close Ticket ID: " + ticketId);
-            }
-
-        } else if (e.getSource() == mnuItemAssignTicket) {
-            int ticketId = Integer.parseInt(JOptionPane.showInputDialog(null, "Enter Ticket ID to assign:"));
-            String assignee = JOptionPane.showInputDialog(null, "Enter the assignee's name:");
-            boolean isAssigned = dao.assignTicket(ticketId, assignee);
-            if (isAssigned) {
-                JOptionPane.showMessageDialog(null, "Ticket ID: " + ticketId + " assigned to " + assignee + " successfully!");
-            } else {
-                JOptionPane.showMessageDialog(null, "Failed to assign Ticket ID: " + ticketId);
-            }
-
-        } else if (e.getSource() == mnuItemDashboard) {
-            // Admin Dashboard Placeholder
-            JOptionPane.showMessageDialog(null, "Admin Dashboard feature is under development.");
-
-        } else if (e.getSource() == mnuItemFilterByStatus) {
-            String status = JOptionPane.showInputDialog(null, "Enter status to filter by (Open/Closed):");
-            try {
-                JTable jt = new JTable(ticketsJTable.buildTableModel(dao.filterTicketsByStatus(status)));
-                JScrollPane sp = new JScrollPane(jt);
-                add(sp);
-                setVisible(true);
-            } catch (SQLException e1) {
-                e1.printStackTrace();
-            }
-
-        } else if (e.getSource() == mnuItemFilterByPriority) {
-            String priority = JOptionPane.showInputDialog(null, "Enter priority to filter by (High/Medium/Low):");
-            try {
-                JTable jt = new JTable(ticketsJTable.buildTableModel(dao.filterTicketsByPriority(priority)));
                 JScrollPane sp = new JScrollPane(jt);
                 add(sp);
                 setVisible(true);
