@@ -1,3 +1,10 @@
+/**
+ * Course: ITMD 411
+ * Date: Dec/ 04/ 2024
+ * Done by: Md. Mahmudul Hasan (A20502196)
+ * PROJECT: Database Recording
+ */
+
 package javaapplication1;
 
 import java.io.BufferedReader;
@@ -20,10 +27,10 @@ public class Dao {
     static Connection connect = null;
     Statement statement = null;
 
-    // Constructor
     public Dao() {
     }
 
+    // Establishes a connection to the database
     public Connection getConnection() {
         try {
             connect = DriverManager.getConnection(url, username, password);
@@ -34,8 +41,7 @@ public class Dao {
         return connect;
     }
 
-    // CRUD implementation
-
+    // Creates the necessary tables for tickets and users in the database
     public void createTables() {
         final String createTicketsTable = "CREATE TABLE IF NOT EXISTS mhasan_tickets("
                 + "ticket_id INT AUTO_INCREMENT PRIMARY KEY, "
@@ -63,9 +69,11 @@ public class Dao {
             System.out.println(e.getMessage());
         }
 
+        // Adds default user data to the database from a CSV file
         addUsers();
     }
 
+    // Reads user data from a CSV file and inserts it into the database
     public void addUsers() {
         BufferedReader br;
         List<List<String>> array = new ArrayList<>();
@@ -92,6 +100,7 @@ public class Dao {
                 String upass = rowData.get(1);
                 int admin = Integer.parseInt(rowData.get(2));
 
+                // Checks if the user already exists before inserting
                 checkUserStmt.setString(1, uname);
                 ResultSet rs = checkUserStmt.executeQuery();
                 rs.next();
@@ -112,7 +121,7 @@ public class Dao {
         }
     }
 
-    // Insert a new ticket and return the ticket ID
+    // Inserts a new ticket into the tickets table and returns its generated ID
     public int insertTicket(String ticketName, String ticketDesc) {
         int id = 0;
         try {
@@ -132,7 +141,7 @@ public class Dao {
         return id;
     }
 
-    // View tickets by ticket ID
+    // Retrieves a ticket record by its ID
     public ResultSet viewTicketById(int ticketId) {
         ResultSet result = null;
         try {
@@ -146,20 +155,21 @@ public class Dao {
         return result;
     }
 
+    // Assigns a ticket to a specific user by ticket ID
     public boolean assignTicket(int ticketId, String assignee) {
         boolean assigned = false;
         try (PreparedStatement pstmt = getConnection()
                 .prepareStatement("UPDATE mhasan_tickets SET assigned_to = ? WHERE ticket_id = ?")) {
-            pstmt.setString(1, assignee); // Set the assignee
-            pstmt.setInt(2, ticketId); // Set the ticket ID
-            assigned = pstmt.executeUpdate() > 0; // Check if the update was successful
+            pstmt.setString(1, assignee);
+            pstmt.setInt(2, ticketId);
+            assigned = pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return assigned; // Return whether the operation was successful
+        return assigned;
     }
 
-    // Update a ticket's description by ticket ID
+    // Updates the description of a ticket identified by its ID
     public boolean updateTicketById(int ticketId, String newDescription) {
         boolean updated = false;
         try {
@@ -174,34 +184,20 @@ public class Dao {
         return updated;
     }
 
-    // Update a user's username by user ID
-    public boolean updateUserById(int userId, String newUsername) {
-        boolean updated = false;
-        try (PreparedStatement pstmt = getConnection()
-                .prepareStatement("UPDATE mhasan_users SET uname = ? WHERE uid = ?")) {
-            pstmt.setString(1, newUsername); // Set the new username
-            pstmt.setInt(2, userId); // Set the user ID
-            updated = pstmt.executeUpdate() > 0; // Check if the update was successful
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return updated; // Return whether the operation was successful
-    }
-
-    // Delete a user by user ID
+    // Deletes a user by their user ID
     public boolean deleteUserById(int userId) {
         boolean deleted = false;
         try (PreparedStatement pstmt = getConnection()
                 .prepareStatement("DELETE FROM mhasan_users WHERE uid = ?")) {
-            pstmt.setInt(1, userId); // Set the user ID
-            deleted = pstmt.executeUpdate() > 0; // Check if the deletion was successful
+            pstmt.setInt(1, userId);
+            deleted = pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return deleted; // Return whether the operation was successful
+        return deleted;
     }
 
-    // Delete a ticket by ticket ID
+    // Deletes a ticket by its ID with confirmation
     public boolean deleteTicketById(int ticketId) {
         boolean deleted = false;
         try {
@@ -222,7 +218,7 @@ public class Dao {
         return deleted;
     }
 
-    // Close a ticket by ticket ID
+    // Closes a ticket by updating its status to 'Closed'
     public boolean closeTicketById(int ticketId) {
         boolean closed = false;
         try {
@@ -236,7 +232,7 @@ public class Dao {
         return closed;
     }
 
-    // Read all ticket records
+    // Reads all ticket records from the database
     public ResultSet readRecords() {
         ResultSet results = null;
         try {
@@ -248,7 +244,7 @@ public class Dao {
         return results;
     }
 
-    // Filter tickets by status
+    // Filters tickets by their status
     public ResultSet filterTicketsByStatus(String status) {
         ResultSet results = null;
         try {
@@ -262,7 +258,7 @@ public class Dao {
         return results;
     }
 
-    // Filter tickets by priority
+    // Filters tickets by their priority level
     public ResultSet filterTicketsByPriority(String priority) {
         ResultSet results = null;
         try {
@@ -276,7 +272,7 @@ public class Dao {
         return results;
     }
 
-    // Get all users
+    // Retrieves all user records from the database
     public ResultSet getAllUsers() {
         ResultSet results = null;
         try {

@@ -1,3 +1,10 @@
+/**
+ * Course: ITMD 411
+ * Date: Dec/ 04/ 2024
+ * Done by: Md. Mahmudul Hasan (A20502196)
+ * PROJECT: Database Recording
+ */
+
 package javaapplication1;
 
 import java.awt.GridLayout;
@@ -17,18 +24,23 @@ import javax.swing.JTextField;
 @SuppressWarnings("serial")
 public class Login extends JFrame {
 
+	// Data Access Object for database interaction
 	Dao conn;
-	int loginAttempts = 0; // Track failed login attempts
-	final int MAX_ATTEMPTS = 3; // Maximum allowed attempts
 
+	// Variables to track login attempts
+	int loginAttempts = 0;
+	final int MAX_ATTEMPTS = 3;
+
+	// Constructor to initialize the login GUI and handle logic
 	public Login() {
 		super("IIT HELP DESK LOGIN");
 		conn = new Dao();
-		conn.createTables(); // Ensure tables are created
+		conn.createTables(); // Ensure required tables exist in the database
 
+		// Configure frame properties
 		setSize(400, 210);
 		setLayout(new GridLayout(4, 2));
-		setLocationRelativeTo(null); // Centers window
+		setLocationRelativeTo(null);
 
 		// UI Components
 		JLabel lblUsername = new JLabel("Username", JLabel.LEFT);
@@ -40,24 +52,25 @@ public class Login extends JFrame {
 		JButton btnSubmit = new JButton("Submit");
 		JButton btnExit = new JButton("Exit");
 
-		// Configure Labels
+		// Additional UI Configuration
 		lblStatus.setToolTipText("Contact help desk to unlock password");
 		lblUsername.setHorizontalAlignment(JLabel.CENTER);
 		lblPassword.setHorizontalAlignment(JLabel.CENTER);
 
-		// Add Components to Frame
-		add(lblUsername); // 1st row
+		// Add components to the frame
+		add(lblUsername);
 		add(txtUname);
-		add(lblPassword); // 2nd row
+		add(lblPassword);
 		add(txtPassword);
-		add(btnSubmit); // 3rd row
+		add(btnSubmit);
 		add(btnExit);
-		add(lblStatus); // 4th row
+		add(lblStatus);
 
-		// Action Listeners
+		// Action listener for the Submit button
 		btnSubmit.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
+				// Extract and validate user credentials
 				String username = txtUname.getText().trim();
 				String password = new String(txtPassword.getPassword());
 
@@ -66,25 +79,28 @@ public class Login extends JFrame {
 					return;
 				}
 
+				// Check if maximum login attempts have been reached
 				if (loginAttempts >= MAX_ATTEMPTS) {
 					lblStatus.setText("Account locked. Contact admin.");
 					return;
 				}
 
-				Boolean isAdmin = authenticateUser(username, password); // Use Boolean to handle null case
+				// Authenticate user credentials against the database
+				Boolean isAdmin = authenticateUser(username, password);
 
 				if (isAdmin != null) {
-					// Role-based navigation
+					// Navigate to AdminPanel or Tickets UI based on user role
 					if (isAdmin) {
 						JOptionPane.showMessageDialog(null, "Welcome, Admin!");
-						new AdminPanel(); // Open Admin version of Tickets GUI
+						new AdminPanel();
 					} else {
 						JOptionPane.showMessageDialog(null, "Welcome, User!");
-						new Tickets(false); // Open User version of Tickets GUI
+						new Tickets(false);
 					}
 					setVisible(false);
-					dispose();
+					dispose(); // Close the login window
 				} else {
+					// Handle invalid credentials and increment login attempts
 					loginAttempts++;
 					int remainingAttempts = MAX_ATTEMPTS - loginAttempts;
 					lblStatus.setText("Invalid credentials. " + remainingAttempts + " attempt(s) left.");
@@ -96,48 +112,39 @@ public class Login extends JFrame {
 			}
 		});
 
+		// Action listener for the Exit button
 		btnExit.addActionListener(e -> System.exit(0));
 
-		setVisible(true); // Show the frame
+		// Make the frame visible
+		setVisible(true);
 	}
 
-	/**
-	 * Authenticates the user against the database.
-	 * 
-	 * @param username The username entered by the user.
-	 * @param password The password entered by the user.
-	 * @return `true` if the user is an admin, `false` if not, and `null` if
-	 *         authentication fails.
-	 */
+	// Authenticates user credentials and returns if the user is an admin or not
 	private Boolean authenticateUser(String username, String password) {
 		String query = "SELECT admin FROM mhasan_users WHERE uname = ? AND upass = ?";
 		try (PreparedStatement stmt = conn.getConnection().prepareStatement(query)) {
-			// Log the query parameters
 			System.out.println("Executing query with username: " + username + " and password: " + password);
 
-			// Set parameters for the query
 			stmt.setString(1, username);
 			stmt.setString(2, password);
 
 			ResultSet rs = stmt.executeQuery();
 
 			if (rs.next()) {
-				// Log successful authentication
 				System.out.println("User authenticated, admin: " + rs.getBoolean("admin"));
 				return rs.getBoolean("admin");
 			} else {
-				// Log failed authentication
 				System.out.println("No user found with the given credentials.");
 			}
 		} catch (SQLException ex) {
-			// Log SQL exceptions
 			System.out.println("SQL Exception occurred!");
 			ex.printStackTrace();
 		}
-		return null; // Authentication failed
+		return null;
 	}
 
+	// Entry point for the application
 	public static void main(String[] args) {
-		new Login(); // Start the login window
+		new Login();
 	}
 }
